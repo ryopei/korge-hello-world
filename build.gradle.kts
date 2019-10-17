@@ -9,11 +9,15 @@ buildscript {
 	}
 	dependencies {
 		classpath("com.soywiz:korge-gradle-plugin:1.2.1")
+		//jvmMainApi "com.soywiz:korau-mp3:$korauVersion"
 	}
 }
+
+
 
 apply(plugin = "korge")
 
 korge {
 	id = "com.sample.demo"
+	supportMp3()
 }
