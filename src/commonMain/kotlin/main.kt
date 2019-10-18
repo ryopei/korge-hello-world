@@ -1,89 +1,115 @@
 import com.soywiz.klock.seconds
+import com.soywiz.korau.sound.nativeSoundProvider
 import com.soywiz.korau.sound.readNativeSound
 import com.soywiz.korge.*
 import com.soywiz.korge.animate.AnLibrary
+import com.soywiz.korge.animate.AnMovieClip
 import com.soywiz.korge.animate.serialization.readAni
 import com.soywiz.korge.input.*
+import com.soywiz.korge.scene.Module
 import com.soywiz.korge.scene.Scene
 import com.soywiz.korge.scene.sceneContainer
 import com.soywiz.korge.tween.*
 import com.soywiz.korge.view.*
+import com.soywiz.korim.bitmap.NativeImage
+import com.soywiz.korim.color.ColorTransform
 import com.soywiz.korim.color.Colors
-import com.soywiz.korim.format.*
+import com.soywiz.korim.color.RGBA
+import com.soywiz.korim.font.BitmapFontGenerator
+import com.soywiz.korim.font.ttf.TtfFont
+import com.soywiz.korim.font.ttf.fillText
+import com.soywiz.korim.vector.Context2d
+import com.soywiz.korinject.AsyncFactory
+import com.soywiz.korinject.AsyncInjector
+import com.soywiz.korio.async.async
 import com.soywiz.korio.async.launchImmediately
 import com.soywiz.korio.file.std.*
+import com.soywiz.korio.stream.openSync
 import com.soywiz.korma.geom.degrees
+import com.soywiz.korma.geom.vector.rect
+import com.soywiz.korma.geom.vector.roundRect
 import com.soywiz.korma.interpolation.Easing
+import kotlinx.coroutines.awaitAll
+import kotlin.reflect.KClass
 
-suspend fun main() = Korge(width = 1080, height = 1920, bgcolor = Colors["#2b2b2b"]) {
+
+object MyModule : Module() {
+
+    override val mainScene: KClass<out Scene> = TitleScene::class
+
+    override suspend fun AsyncInjector.configure() {
+        mapPrototype { TitleScene() }
+        mapPrototype { TitleScene2() }
+    }
+}
+
+suspend fun main() = Korge(config = Korge.Config(module = MyModule))
+class TitleScene : Scene() {
+
+    override suspend fun Container.sceneInit() {
+
+        val t = text("Mouse Position:", color = Colors.WHITE)
+
+        graphics {
+
+            stroke(Colors.RED, Context2d.StrokeInfo(3.0)) {
+                roundRect(100.0, 100.0, 300.0, 300.0, 10, 10)
+            }
+
+            fill(Colors.YELLOW) {
+                roundRect(300.0, 300.0, 300.0, 300.0, 10, 10)
+            }
 
 
-	val minDegrees = (-16).degrees
-	val maxDegrees = (+16).degrees
+            onClick {
+                launchImmediately {
+                    sceneContainer.changeTo(TitleScene2::class, time = 1.5.seconds)
+                }
+            }
+        }
+        onMove {
+            t.text = "Mouse Position:" + it.currentPos
+        }
+    }
+    override suspend fun sceneAfterInit() {
+        super.sceneAfterInit()
+    }
 
-	//views.gameWindow.fullscreen = true
+}
 
-	var sound = resourcesVfs["easy_life.mp3"].readNativeSound().play()
+class TitleScene2 : Scene() {
 
-	var mainLibrary: AnLibrary = resourcesVfs["chara_kurage.ani"].readAni(views)
-	var wall = resourcesVfs["banner_brown.ani"].readAni(views)
+    lateinit var kurage:AnMovieClip
 
-	resourcesVfs[""].listNames().forEach {
-		println(it)
-	}
+    override suspend fun Container.sceneInit() {
+        var mainLibrary: AnLibrary = resourcesVfs["chara_kurage.ani"].readAni(views)
+        kurage = mainLibrary.createMainTimeLine().apply {
+            position(3 * this.width/2, this.height*3)
+            scale(3.0, 3.0)
+            onClick {
+                launchImmediately {
+                    sceneContainer.changeTo(TitleScene::class, time = 1.5.seconds)
+                }
+            }
+        }
+        kurage.symbol.states.forEach {
+            println(it.value.name)
+        }
 
-	launchImmediately {
+        addChild(kurage)
+        kurage.timelineRunner.gotoAndStop("stop_back")
+    }
 
-		val kurage = mainLibrary.createMainTimeLine().apply {
-			position(540, 960)
-			scale(3.0, 3.0)
+    override suspend fun sceneAfterInit() {
+        super.sceneAfterInit()
 
-			onDragStart {
-				println("drag start" + it)
-			}
-			onDragEnd {
-				println("drag end" + it)
-			}
-			onDragMove {
-				println("drag move" + it)
-			}
-
-			onClick {
-				println("onClick" + it)
-			}
-		}
-		(0..10).forEach {
-			containerRoot.addChild(wall.createMainTimeLine().apply {
-				x = width * it
-			})
-		}
-
-		containerRoot.onClick {
-			println("onClick")
-
-			val pos = globalToLocal(it.downPos)
-
-			val k = mainLibrary.createMainTimeLine().apply {
-				println(it.downPos)
-				println(pos)
-				position(pos)
-			}
-			containerRoot.addChild(k)
-		}
-
-		containerRoot.addChild(kurage)
-
-		while(true) {
-			//kurage.playAndWaitStop("walk_left")
-			kurage.tween(kurage::rotation[minDegrees], time=1.seconds, easing = Easing.EASE_IN_OUT)
-			kurage.tween(kurage::rotation[maxDegrees], time=1.seconds, easing = Easing.EASE_IN_OUT)
-		}
-
-//		mainLibrary.createMainTimeLine()
-//		while (true) {
-//			image.tween(image::rotation[minDegrees], time = 1.seconds, easing = Easing.EASE_IN_OUT)
-//			image.tween(image::rotation[maxDegrees], time = 1.seconds, easing = Easing.EASE_IN_OUT)
-//		}
-
-	}
+        async {
+            kurage.timelineRunner.gotoAndPlay("walk_left")
+            kurage.timelineRunner.gotoAndPlay("walk_left")
+            kurage.timelineRunner.gotoAndPlay("walk_left")
+            kurage.timelineRunner.gotoAndPlay("walk_left")
+            kurage.timelineRunner.gotoAndPlay("walk_left")
+            kurage.timelineRunner.gotoAndPlay("walk_left")
+        }.await()
+    }
 }
